@@ -1,0 +1,30 @@
+name: CI - Pull & Verify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read   # needed to pull from GHCR
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Pull image (lowercase name)
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE=ghcr.io/${OWNER}/payment-service:1.0.0" >> "$GITHUB_ENV"
+          docker pull "ghcr.io/${OWNER}/payment-service:1.0.0"
+
+      - name: Run verify container (detached)
+        run: |
+          docker run -d --name verify "$IMAGE"
+          sleep 3
+          docker ps -a --filter name=verify
+          docker logs verify
